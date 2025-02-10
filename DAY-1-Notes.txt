@@ -1,0 +1,360 @@
+
+Good Morning All
+
+Welcome to Grafana & Prometheus Session - DAY1 
+	   --------------------
+This is Palani Karthikeyan (Call: Karthik) - Trainer.
+	---------------------------------
+
+We will start session @ 9:30 AM IST 
+=================================================================
+	
+Grafana - Visualization ->Dashboard
+|		|	  ..........
+Prometheus - DataSource (TSDB)	
+
+Grafana + randomQuery
+Grafana + influxDB <--- insert,update,delete,select
+Grafana + Prometheus
+Grafana + <dataSource> Excel,json,cloudexporters,RDBMS,....
+
+Grafana + Prometheus => Measurement 
+
+	Text	->log
+	Floating Value ->measurement
+	|
+	trace 
+###################################################################################
+
+Grafana
+--------
+  |->Visualization Tool
+  |->Build the dashboard
+		|
+		1 or more visualization(panel)
+				|
+			   set of attributes(properties)
+
+
+  
+ [ Grafana ] <---------------> [ MySQL ]	
+		MySQL query
+
+ [ Grafana ] <---------------> [InfluxDB]
+		influxQL
+ 
+
+ [ Grafana ] <---------------> [ json ]
+	      json url /object
+
+
+ [ Grafana ] <---------------> [Excel]
+		sheetName...
+ 
+ [ Grafana ] <--------------->[prometheus]
+		promQL
+
+ [ Grafana ] <---------------->[oci-exporters]
+		ocimetrics
+ 
+		
+##############################################################################
+
+OS
+---
+  |->File,Process
+
+File - Data - under the storage unit
+|
+Process - Data - under the CPU
+
+User process		Vs		System process
+-------------				----------------
+- by user				- by system(systemd_ init ..)
+- IO - tty/pts/port			- Not IO ?
+					- service (or) daemon //always active
+					  |
+					 map the real execution file(like .exe /bin/file)
+Linux like os
+--------------
+/bin/fileA <==  executable file (or) command - user can't able to read
+	|
+	/etc/fileA.conf <-- this is not a executable file - ASCII/TEXT File  - user can 							    able to read
+	
+fileA_Application(User process) <-- to use/run this application
+
+
+
+root@host~]# /bin/fileA --config=/etc/fileA.conf {Enter}
+....        
+... running (Active ) - we can use fileA_Application
+    					
+Ctr+C - exit		-  fileA_Application is down
+
+		
+#################################################################################
+	
+wget https://dl.grafana.com/enterprise/release/grafana-enterprise-11.4.1.linux-amd64.tar.gz
+tar -zxvf grafana-enterprise-11.4.1.linux-amd64.tar.gz
+
+OL
+---
+|
+root@host~]# wget -q -O gpg.key https://rpm.grafana.com/gpg.key
+	     sudo rpm --import gpg.key
+	    
+	    vi /etc/yum.repos.d/grafana.repo
+				
+	   [grafana]
+	    name=Grafana
+	    baseurl=https://rpm.grafana.com
+	    repo_gpgcheck=1
+	    enabled=1
+	    gpgcheck=1
+	    gpgkey=https://rpm.grafana.com/gpg.key
+	    sslverify=1
+	    sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+	    :wq
+
+	       yum clean all
+	     |
+	    sudo dnf install grafana-enterprise <== OL[89]
+	         yum <== OL[567]		
+	   ---------------------------------
+	   |->open a browser ->on the address bar => 127.0.0.1:3000 {Enter}
+						
+					Login: admin
+					password: admin
+					|
+					(Submit)
+
+	
+--------------------------------------------------------------------------------------- 
+	   
+OL[56] - init PID:1
+	Vs
+OL[789] - systemd_ PID:1
+	   	
+
+init     systemd_ (cgroup - kernel subsystem) 
+P1	      |
+|	----------------------------- -------------------------------
+P2      |    |      |        ..     |				     |
+|       P2   P3    P4     ...    Granafana-server.service 	   Pn
+P3
+|	|->systemctl  <== admin command  systemctl start grafana-server
+..
+|
+Grafana-server.service
+|
+..
+
+service <== admin command  -> service grafana-server start
+-------------------------------------------------------------------------------
+
+Dashboard - 1 or more panels(visualization)
+			|
+			own set of attributes(property)
+				   --------------------//editable
+------------------------------------------------------------------------------
+Time series
+stat
+guage
+
+
+
+Create 3 stat panels
+       -------
+
+panel-1   panel-2   panel-3
+|->swap   |->RES    |->free  <== panel titles
+   90         60        95   <== Threshold
+ --------- ------   --------
+|
+create a new row -> add all 3 stat panels to newrow ->memory
+
+###########################################################################
+Tooltip
+---------
+Create new dashboard ->create new panel ->Timeseries
+|			(Grafana data source - random Query)
+|
+|
+Go to Query editor ->maximum data points
+---------------   =================== 10 
+
+|
+Graph Styles
+|
+|__Points - increase data point size then select line
+
+|
+Go to Query editor ->Duplicate new Query (B)
+|
+|->enable and disable query - refresh
+|
+|->enable both query - refresh
+|
+Go to Tooltip property
+	|
+	[single All Hidden]
+	  |	|	| ---> keep mouse pointer on the panel datapoint
+	  |	|		
+	  |	---> keep mouse pointer on the panel datapoint
+	  |	     - we can see both Query(A & B) values(value,timeindex)
+	  |
+	  |->we can see the current datapoint value
+--------------------------------------------------------------------------------
+|->duplicate C D E query  
+ ->check tooltip
+--------------------------------------------------------------------------------
+
+Task 1:
+---------
+Create a new Folder (demo1)
+		|
+		|-> create a new dashboard
+				 |->Create a new timeseries panel
+						 \_ create multiple query(a,c,d)
+						 \_ tooltip
+							|->Single All 
+							|->enable & disable set of query
+						 \_ override an existing attributes
+		|->save this dashboard 
+		|->export to json file
+---------------------------------------------------------------------------
+Task 2:
+--------
+Create a new dashboard
+		|->Create a Gauge panel
+			    |->duplicate 2 panels
+				Title: Swap   RES     SHM
+				update threshold value (Swap >90 ; RES >80; SHM >65)
+				update datalink	- each panel individual link
+				
+			    |->create a new row ->memory_info
+			    |->add all 3 panels into memory_info
+
+		
+
+		|->create a new row ->process_info
+			|-> create 3 stat panels - duplicate this panel
+			|-> set value mapping for each stat
+			|-> add 3 panels to process_info
+
+		|->Save this dashboard ->demo folder
+
+demo1/
+    |->DB1
+    |->DB2
+----------------------------------------------------------------------------
+
+json
+-----
+ |-> int float str  bool(true;false) null
+ |-> array  - index based
+ |-> object - key:value
+
+ |-> array of array   [ [att1,att2],[att3,att4],[att5,att6] ]
+
+     array of object  [ {K1:V1,K2:V2},{K1:10,K2:20} ]
+
+     object of array  {K1:[true,false],K2:[12,2.4,data]}
+     |
+     object of object {K1:{K1:V1,K2:V2,K3:V3},{K2:{K1:10,K2:20},{K3:{K1:1.2,K2:3.23}}
+			   --			   ---		     ---
+			
+
+panel ->property ->json format
+-----		  --------------
+|->panel ->inspect ->json
+
+dashboard 
+|->export ->json
+
+######################################################################################
+
+Time series Database
+--------------------
+      |
+      |
+      |
+value |		.
+ (10) |		
+     -|---------|-------------------
+      |         time ->
+
+	
+InfluxDB is an open source time series database
+--------
+influxQL - time-stamped data
+	   -------------====
+			 |->performance,application monitoring,IoT sensor data
+
+influxDB stores data - measurement(table)
+			 |->tags
+			 |->fields 
+			 |->timestamp
+
+			
+DataSource Configuration
+---------------------------
+1st -> check with datasource daemon is active 
+2nd -> connect - running instance IP:<portNumber>
+		 --------------------------------
+			|
+		3rd -> update your database
+		|
+		4th ->Test DB connection ->[OK-green Color]
+					   [Error - redColor]
+-----------------------------------------------------------------
+
+
+python
+ - data --> json --> [influxDB] <============ Grafana
+	  ---------->[influxDB]			|->Visualization
+ 
+	<---------->	Telgegraf
+		|	IOT_device_plugin ->telgegraf ->influxDB
+		json	 (MQTT,HTTP)		   <----------->
+{K1:[tcp://deviceID:<port>]
+K2:[sensor/tem]
+K3:13}
+-------------------------->
+		url = http://<IP>:8086/api/URL
+		      requests.post(url,data=data) # sending data to influxDB
+
+=================================================================================
+
+database
+|
+table - measurement
+|
+insert <measurement>,Tag=value .. value=value
+|
+select *from <measurement>
+|
+time		field value
+
+cpuUsage,host=node1,region=us-west value=0.56   <timestamp> (nanoseconds)
+-------- ------------------------- -----------	  |->autogenerate
+|		|->Tags		    |->Field
+|
+measurement
+---------------------------------------------------------------------------------
+InfluxDB Activity
+--------------------
+ |-> influxdbd -service - running 
+ |			  --------
+ |-> influx-client - client interface - Query
+	|
+	|->create database <DBName>;
+	|->show databases;
+	|->use <databasename>;
+	|->insert <measurement> field1=value1,field2=value2 value
+	|->select *from <measurement>
+		...
+-----------------------------//OK
+
+Download influxDB <2.0 version
+---------------------------------
