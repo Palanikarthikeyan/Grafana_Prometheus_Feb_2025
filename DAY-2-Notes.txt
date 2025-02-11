@@ -1,0 +1,260 @@
+Recap
+------
+Grafana 
+ - install 
+ - grafana-service 
+ |
+ - login: admin
+   password: admin
+
+ |
+ Dashboard 
+ ---------
+   |-> 1 or more visualization (panel)
+		  ------------
+			|->own set of attributes(properties)	
+			|->we can modify panel attributes(UI <or> json)
+			|->panel and dashboard ->json_file ->import ->dashboard
+   |->timeseries
+   |->gauge
+   |->stat
+	
+   |->Threshold
+   |->datalinks
+   |->title and description 
+   |->override 
+	..
+   ------------------------//randomQuery 
+--------------------------------------------------------------------------------------
+Grafana <6.0
+|
+step 1: configure data source 
+|
+step 2: create a dashboard
+--------------------------------------------------------------------------------------
+
+Configure datasource 
+|
+datasources 
+|
+Add new datasource
+|
+http end points - we can configure datasource
+
+step 1: Configure and Test DataBase ->OK
+|
+step 2: Go to Grafana ->datasource ->add new datasource ->update databasename ; port details ->OK
+|
+step 3: Create a dashboard ->select configured datasource ->table/measurement ->	visualization.
+-----------------------
+
+
+unzip influxDB file
+|
+influxDB/
+	 
+Linux/mac os users:
+-------------------
+open your commandline terminal ->unzip influxDB.zip ->./influxdbd <== start the daemon
+|								|->Running
+open another commandline terminal ->influx_client 
+					|
+					>
+					> we can write influxQL 
+
+show databases
+
+create database <DBNAME>
+
+use database
+
+insert <measurement> field1=value1,field2=value finalValue=Value 
+	|
+	table
+
+#########################################################################
+
+
+> create database demo2
+> use demo2
+Using database demo2
+>
+> show measurements
+>
+> insert cpuUsage,host=node1 idle=98.45
+> select *from cpuUsage
+name: cpuUsage
+time                host  idle
+----                ----  ----
+1739248176462963300 node1 98.45
+>
+> show measurements
+name: measurements
+name
+----
+cpuUsage
+>
+> insert cpuUsage,host=node2 idle=89.31
+> insert cpuUsage,host=node3 idle=61.24
+>
+> insert cpuUsage,host=node4 idle=20.24
+> insert cpuUsage,host=node1 idle=95.34
+>
+> select *from cpuUsage
+name: cpuUsage
+time                host  idle
+----                ----  ----
+1739248176462963300 node1 98.45
+1739248254331939700 node2 89.31
+1739248267979813600 node3 61.24
+1739248292581248800 node4 20.24
+1739248310489020700 node1 95.34
+>
+> select *from cpuUsage where idle >90
+name: cpuUsage
+time                host  idle
+----                ----  ----
+1739248176462963300 node1 98.45
+1739248310489020700 node1 95.34
+>
+
+--------------------------------------------------------------
+
+Task
+-----
+|
+influxQL
+|
+|->measurement -> memUsage,host=host01 sharedmemoryValue
+
+ insert memUsage,host=host01 shm=65
+ ..
+ |
+configure ->this database to Grafana ->Query editor ->select your table/measurement ->									  field
+----------------------------------------------------------------------------
+Grafana variable
+----------------
+variable - holding a value
+|
+
+$__interval
+$timeFilter
+-------------//pre-defined variables
+
+now()
+time(5m)
+select value from cpuUsage where $timeFilter
+select mean("value") from cpuUsage where $timeFilter GROUP BY time($__interval)
+
+
+variable <Value>
+|
+$variable
+|
+/pattern/ <== Regx
+
+
+/^$variable$/ <== In Grafana variable 
+--------------InfluxDB Query editor
+
+=~  <== Regx match operator
+!~  <== Regx Not-matching operator
+----//Regx operators
+
+#########################################################################
+Grafana variable task
+|
+Step 1: open your influxDBShell 
+|	
+|
+Step 2: use existing database  -> use demo2
+|
+Step 3: insert diskio,host=host01 du=98.45		
+	insert diskio,host=host02 du=56.23
+	insert diskio,host=host03 du=51.25		
+	insert diskio,host=host04 du=99.34
+	insert diskio,host=host01 du=65.45		
+	insert diskio,host=host02 du=99.23
+	insert diskio,host=host03 du=54.25
+	insert diskio,host=host01 du=78.31
+	insert diskio,host=host01 du=45.21
+			   ------
+|
+Step 4: select *from diskio 
+|
+Step 5: Go to Grafana ->datasource ->Add new datasource ->influxDB ->databaseName ->OK
+|
+Step 6: Go to dashboard ->use DAY2 folder ->create dashboard ->select your datasource
+						  ->select measurement ->field value	
+|
+Step 7: Save this dashboard
+|
+Step 8: Go to dashboard settings ->Variable Tab
+|
+Step 9: Add new variable -> variable type:query
+			    ..
+			    show tag values with key = "host"
+			    |
+			see the preview: host01 host02 host03 host04 //OK
+|
+Step 10: Back to dashboard ->edit ->Query editor
+				    \__ where + => tag::host =~ /^$varaible$/
+						    -------- ---------------
+ |
+Step 11: Go to view - select your host
+|
+Step 12: update variable name in title & description
+--------------------------------------------------------------------------------
+Threshold
+----------
+- condition field >only
+  ----------------
+   |->Matched - resource is critical state 
+   |->won't send any notification to channel
+
+Vs
+alert
+------
+|->condition field < > <= >=
+|->Matched - resource is critical state 
+|->will send any notification to channel
+
+
+Evaluation - How frequently the alert rule is evaluated - interval 10s,20s,
+Pending - How long the alert condition must be met to start firing - 							hold,fire_immediately
+
+[normal] -->[pending]--->[firing]
+
+
+evaluation is 10s - pending 1m (for: 1m)
+
+1st evaluation ->00:10 - condition - not met(not above 95%) - normal
+2nd evaluation ->00:20 - condition - met --->pending [yellow]
+3rd evaluation ->00:30 - ,,	   - ,,  --->pending [yellow]
+					   ------------
+					below 95 pending [yellow] ->normal[green]
+					above 95 pending [yellow] ->fire[red]
+					....
+------------------------------------------------------------
+
+Alert demo
+|
+1st - create channel details(contact points)
+
+|
+2nd - dashboard ->create a panel ->(select Datasource) ->alert tab
+
+|
+3rd alert 
+	|->rule
+	|->condition
+	|->select contact points(step 1)
+	|
+	|->evaluation & pending 
+	|
+	|->evaluate rule 
+	|->save and exit
+|
+4th ->create alert list panel
+
+-----------------------------------------------------------------------------
