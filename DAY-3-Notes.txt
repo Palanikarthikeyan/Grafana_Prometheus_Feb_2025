@@ -1,0 +1,422 @@
+oci exporter
+|
+|
+Prometheus
+
+[DEFAULT]
+user=ocid1.user.oc1..a
+fingerprint=<finger-print>
+tenancy=ocid1.tenancy.oc1..
+region=us-ashburn-1
+key_file=<path to your private keyfile> # TODO
+
+https://github.com/oracle/oci-grafana-metrics/blob/master/docs/linux.md
+
+[Grafana]-----------[oci-exporters]
+			|->datasource - predefined metrics (like Query)
+						|->oci_metric...
+						|->aws_.... 
+
+	Vs
+			
+[Grafana] <----promQL----->[prometheus]
+			    |<-------------------------------->p1.py(python)
+			    |<-------------------->MySQL DB
+			    |<------------------->docker
+			    |<------------------>local system
+			    |<------------------->VirtualBox(OS)
+			    |
+			    |<--------------->exporter<------------>[oci]					    |	promQL + oci_metrics...
+
+			    |<------------->aws-exporter<---------->[aws]
+#########################################################################################
+
+1. yaml
+2. service file 
+
+
+1. yaml
+--------
+ |->Prometheus configuration 
+ |->Prometheus alert - rules
+ |->Prometheus promQL - record rules
+
+2. service file
+-------------------
+
+	[ Prometheus ] <-------------------->[Remote m/c] //exporter(.exe(or)binary)//R+
+	  |	|  |________Appln - own exporter //act as an agent
+	  |	MySQL
+	  |	|---->MySQL exporter (.exe/binary) //act as an agent
+	 Prometheus 
+	 - binary(or)exe - running state
+
+1. yaml
+--------
+filename.yaml (or) filename.yml
+
+yaml/yml file - key: value //format of data
+
+Key:<space>Value
+
+key: value
+     -----
+	|->Single - int float str true false on off yes no nil
+	|->Collection - Array Hash/dict
+			|     ----------//key:value pair 
+			|
+			Array - index based
+
+filename: index.html
+fileindex: 1345
+fileutil: 98.42
+filestatus: yes
+----------------------//1Key: 1value 
+
+fileinfo: [index.html,1345,98.42,yes]
+---------------------------------------//1Key: multiple values (array)
+	<or>
+filename:
+- index.html
+- 1345
+- 98.42
+- yes
+---------------------//1key: multiple values (array)
+
+Arrayname:
+-<space>Value
+-<space>Value
+
+fileinfo: {K1: index.html,K2: 1345,K3: 98.42,K4:yes}
+  <or>
+
+fileinfo:
+  K1: index.html
+  K2: 1345
+  K3: 98.42
+  K4: yes
+
+
+HashName:
+<><>Key1:<>Value
+<><>Key2:<>Value
+
+<> - 1 space
+
+
+Key1: [D1,[D2,D3],{K1: D4,K2: D5}] 
+          --------------------------//array of array
+				   //array of hash
+
+Key1:
+- D1
+- - D2
+  - D3
+- K1: D4
+  K2: D5
+
+
+K1: {K1: V1,K2: {K1: 10,K2: 20}}  Vs  {K1: 10,K1: 20,K1: 30} -> K1 ->30
+
+rules: [ {record: cpu-core1},{record: cpu-core2} ]
+	 --------0th------- | --------1st-------
+	<or>
+rules:
+- record: cpu-core1
+- record: cpu-core2
+
+	Vs
+rules: {record: cpu-core1,record: cpu-core2} =>cpu-core2 only
+
+########################################################################################
+  
+Service file <or> unit file
+----------------------------
+
+Recap - grafana-server.exe (or) /bin/grafana-server - running (R+) 
+	
+	user process: -> 127.0.0.1:3000
+			Active
+
+File - Data - under the storage unit
+|
+Process - Data - under the CPU
+
+User process		Vs		System process
+-------------				----------------
+- by user				- by system(systemd_ init ..)
+- IO - tty/pts/port			- Not IO ?
+					- service (or) daemon //always active
+					  |
+					 map the real execution file(like .exe /bin/file)
+- parent is: working shell		- parent process is:systemd (or) init PID:1
+
+To start any job/script/utility automatically 
+  <or>
+while os loading time to start any job/script/utility automatically 
+  <or>
+convert user process ->system process
+
+Step 1: Create own service file
+	|
+	/etc/systemd/system/filename.service 
+	|
+	vi /etc/systemd/system/filename.service 
+	[Unit]
+	Description="Own description"
+	[Service]
+	ExecStart="map your real executable binaryFile-path"
+	[Install]
+	WantedBy=multi-user.target
+
+	:wq <== save and exit
+|
+Step 2: reload daemon configuration
+	systemctl daemon-reload
+
+|
+Step 3: to start automatically 
+	systemctl enable filename.service 
+		  ------
+|
+Step 4: to test -> systemctl start filename.service
+		   systemctl status filename.service
+		   systemctl restart filename.service
+-----------------------------------------------------------
+	To stop the service => systemctl stop filename.service
+
+	disable automatic loading => systemctl disable filename.service 
+-----------------------------------------------------------
+[root@krosumlabs ~]# cat /root/p1.sh
+#!/usr/bin/bash
+
+while :
+do
+     uptime >>/var/log/LB.log
+     sleep 5
+done
+[root@krosumlabs ~]# chmod a+x /root/p1.sh
+------------------------------------------------------
+
+Step 1: Create own service file
+--------------------------------
+[root@krosumlabs ~]# cat /etc/systemd/system/ab.service
+[Unit]
+Description=About CPU LoadBalance
+
+[Service]
+ExecStart=/usr/bin/bash /root/p1.sh
+
+[Install]
+WantedBy=multi-user.target
+[root@krosumlabs ~]#
+
+Save and exit
+------------------
+Step 2: reload daemon configuration
+	systemctl daemon-reload
+-------------------
+Step 3: to start automatically 
+	systemctl enable filename.service 
+		  ------
+--------------------
+Step 4: to test -> systemctl start filename.service
+		   systemctl status filename.service
+--------------------
+root@host~]# /root/p1.sh & 
+[EventID] <PID>
+
+ps -ef|grep "p1.sh"
+
+systemctl stop filename.service
+systemctl disable filename.service
+-----------------------------------------------------------------------------------
+
+Prometheus
+------------
+ |->Data Source
+ |->Open source monitoring and alerting toolkit
+ |->monitoring
+	  |--->Application monitoring - (execution code,FullStackAppln etc.,)
+	  |
+	  |--->Infrastructure monitoring
+		------------------------
+			|->local m/c,remote m/c,container,cloud etc.,
+ |
+ |->promQL - query ->apply condition ->push the alertmanager 
+
+ |->Alertmanager ->notify the channel
+
+ |->time-series data collection ->storage ->Query -->-Connect--->Grafana->Visualization
+					      |
+					   (apply condition)
+						   |met
+						 Alertmanager
+
+
+###################################################################################
+
+metric - like query ->measurement (float-value)
+
+prometheus scrapes metrics from endpoint(localhost;remotehost;containers;applications)
+that expose /metrics 
+	   ----------
+		|->format
+
+metric format
+--------------
+<MetricName> {Key1=Value,Key2=Value,..Kn=Vn}  FinalValue <timestamp>
+-------------|_____________________________|	  |	      |__ X axis
+			|			  |__ Y axis
+		     Label
+
+
+process_cpu_count {job="prometheus-local",mode="idle"...}  98.31 <timestamp>
+|		  ---------------------------------------
+|			|-->label
+process_cpu_count 
+-------------------//metric name
+===================================================================================
+
+wget https://github.com/prometheus/prometheus/releases/download/v3.2.0-rc.1/prometheus-3.2.0-rc.1.linux-amd64.tar.gz
+===================================================================================
+To monitor remote linux m/c in prometheus server
+--------------------------------------------------
+ localhost:9090
++-----------------+
+|		  |
+| local m/c       | <-------------------> [ oci - OL8 ]
+|		  |				  ----
++-----------------+				->exporter -> node_exporter
+					 
+   |____________________________________________|
+		network - OK
+
+					   On remote system (OL8)
+					 (1) -> download node_exporter 
+					 (2) -> execute this exporter //Process
+ On prometheus server
+  (3)->update remote IP:9100
+       on prometheus.yml
+ 
+  (4)- job_name: "OL8"
+       static_configs:
+     - targets: ['remoteIP:9100']
+
+  -> save this prometheus.yml
+  |
+  (5)-> restart prometheus
+
+
+target_endpoints:
+ - localhost:9090
+ - remoteHost:9100
+
+remote node -> metricname starts with node_ 
+#####################################################################################
+
+OL8
+----
+wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-arm64.tar.gz
+
+tar -xvzf node_exporter-1.8.2.linux-arm64.tar.gz
+
+cd node_exporter-1.8.2.linux-arm64
+
+firewall-cmd --permanent --add-port=9100/tcp
+firewall-cmd --reload
+
+./node_exporter
+----------------------------------------
+130.61.219.247 
+
+0.0.0.0/0
+9100
+--------------------------------------------
+
+add 9100 port ->firewalld 
+sudo firewall-cmd --permanent --add-port=9100/tcp
+sudo firewall-cmd reload
+---------------------------------
+
+oci -> add ingress rule -> 9100
+---------------------------------------------
+|
+wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-arm64.tar.gz
+
+tar -xvzf node_exporter-1.8.2.linux-arm64.tar.gz
+
+cd node_exporter-1.8.2.linux-arm64
+|
+./node_exporter 
+
+# go to promethes server -> update remote node IP:9100 ->Test exporter is working
+							 <remote-IP>:9100/metrics
+|
+mv node_exporter /usr/bin # move this exporter file to /usr/bin (or) refer $PATH variable
+|
+vi /etc/systemd/system/node_exporter.service
+
+[Unit]
+Description="node exporter service"
+[Service]
+ExecStart=/usr/bin/node_exporter
+[Install]
+WantedBy=multi-user.target
+:wq
+|
+systemctl daemon-reload 
+|
+systemctl enable node_exporter.service 
+|
+systemctl start node_exporter.service
+|
+systemctl status node_exporter.service
+---------------------------------------------------------------------------------
+
+
+
+[root@grafana-server ~]# cat -n /etc/systemd/system/node_exporter.service
+     1  [Unit]
+     2  Description="node exporter service"
+     3  [Service]
+     4  ExecStart=/usr/bin/node_exporter
+     5  [Install]
+     6  WantedBy=multi-user.target
+[root@grafana-server ~]#
+[root@grafana-server ~]# systemctl daemon-reload
+[root@grafana-server ~]# systemctl enable node_exporter.service
+Created symlink /etc/systemd/system/multi-user.target.wants/node_exporter.service → /etc/systemd/system/node_exporter.service.
+[root@grafana-server ~]#
+[root@grafana-server ~]# systemctl start node_exporter.service
+[root@grafana-server ~]#
+[root@grafana-server ~]# systemctl status node_exporter.service
+● node_exporter.service - "node exporter service"
+   Loaded: loaded (/etc/systemd/system/node_exporter.service; enabled; vendor preset: d>
+   Active: active (running) since Wed 2025-02-12 11:58:08 GMT; 13s ago
+ Main PID: 24358 (node_exporter)
+
+
+##########################################################################
+binary execution error - 203 
+--------------------------------
+ls -Z /usr/bin/node_exporter
+|
+chcon -t bin_t /usr/bin/node_exporter
+semanage fcontext -a -t bin_t /usr/bin/node_exporter
+restorecon -v /usr/bin/node_exporter
+|
+ls -Z /usr/bin/node_exporter
+|
+sudo systemctl daemon-reload
+sudo systemctl restart node_exporter
+systemctl status node_exporter
+############################################################################
+
+
+
+
+
+
+			
+ 					
