@@ -1,0 +1,576 @@
+Recap
+------
+ |->Prometheus - datasource (TSDB)
+	       
+  metricName {Key1=Value,...Kn=V}  <FinalValue>
+	     ---------------------
+		  |->label
+
+ [prometheus]
+   |	 |-----------------------[node1 - Linux]
+   |	 |				  - download node_exporter	
+ Prometheus.yml				  - execute node_exporter //process
+  |->update - remoteNode:<port>
+  |
+ Prometheus - R+
+ |
+ restart Prometheus
+
+ [prometheus]
+   |	 |-----------------------[node2 - wmi-exporter]
+   |	 |				  - download wmi_exporter	
+ Prometheus.yml				  - execute wmi_exporter //process
+  |->update - remoteNode:<port>
+  |
+ Prometheus - R+
+ |
+ restart Prometheus
+
+
+ [prometheus]
+   |	 |-----------------------[node3 - mysql]
+   |	 |				  - download mysql_exporter	
+ Prometheus.yml				  - execute mysql_exporter //process
+  |->update - node3IP:<port>
+  |
+ Prometheus - R+
+ |
+ restart Prometheus
+
+
+
+ [prometheus]
+   |	 |-----------------------[node4 ]
+   |	 |				  - download pushgateway_exporter	
+ Prometheus.yml				  - execute pushgateway_exporter //process
+  |->update - node4:<port>
+  |
+ Prometheus - R+
+ |
+ restart prometheus
+
+
+
+
+# to get list of all exporters
+
+# https://github.com/orgs/prometheus/repositories
+# https://github.com/prometheus-community
+
+####################################################################################
+<metricName> {Key1=value, key2=value .. Kn=Vn}   Value
+	     ----------------------------------
+		|->Label
+
+we can apply relational,logical and regx operations	
+				    ---------------
+					=~  !~ 
+relational < <= > >= == !=
+logical and or 
+
+Regx chars
+-------------
+ ^   -> ^pattern
+ $   -> pattern$
+ ^pattern$ - patternonly
+
+ [ ] - character class
+
+ [a5t] -> a or 5 or t //OK
+
+ [0-9]
+ [a-z]
+ [A-Z]
+ [a-zA-Z]
+ [a-zA-Z0-9]
+
+ pattern1|pattern2 - any one pattern is matched ->OK
+
+ (pattern1)(pattern2) - both pattern should matched ->OK
+			(same order -> patter1<followedby>pattern2)
+
+					
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+user_details={username:"Mr.ABC",userID:134}
+-------------
+
+requests.post('10.20.30.40/userdata',data=user_details)   requests.get('10.20.30.40/userdata') 
+..................
+
+enduser:  open a broswer -> 10.20.30.40/userdata
+
+				username=Mr.ABC
+				userID=134
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+1. node exporter collectors
+2. promQL
+	|->query
+	|->record rules
+3. pushgateway
+4. Application monitoring
+	- code
+	- fullstack 
+5. Alertmanager
+----------------------------
+
+1. node exporter collectors
+----------------------------
+CPU Collector
+Filesystem Collector
+Diskstats Collector
+Netdevice Collector
+Meminfo Collector
+Loadavg Collector
+Stat Collector
+
+HwmonCollector - bare metal - temperature fan speeds ...
+node_hwmon_ <== metric name starts with
+..........................//node_
+
+
+ ---------------------------------------
+ 	systemcall() = FD (file descriptor FD=0 ; FD=1; FD=2 
+			   FD=3 to 2 pow 32/64 - ValidCall
+			   FD=0x1245 - memory  
+			   FD=-1 <--failed call)
+	|
+[FileSystem] <---->PCB | IPC ; SCHED ; Memory;Net |
+ 	|
+	[Device Drivers]
+	|
+	[Device Controllers]
+	|
+---------------------------------------------
+	H/w
+
+//Core Kernel datastructures ->systemcall ->/proc /sys/ 
+						|
+						node_exporter - get info from /proc 
+
+/proc 	  /   <== user 
+------------------
+proc    xfs   <== kernel
+------------------
+CPU RAM  HD   <== H/w
+
+#########################################################################
+
+diskstats collector
+- Linux => cat /proc/diskstats
+
+Netdev Collector
+-----------------
+ ->network devices
+
+node_network_
+
+MemoryInfo
+------------
+->/proc/meminfo
+
+node_memory_
+---------------------------------------------------------------------
+promQL 
+-------
+prometheusQL
+--------------
+ |->operators
+ |->functions
+
+metricTypes
+-----------
+ |->Counter
+ |->Gaguge
+ |->Summary
+ |->Histogram
+
+Counter - type
+--------------
+ n n++ n++
+
+Gaguge
+---------
+ n n++ n--
+
+Histogram
+----------
+ Collective data - track the distribution
+ ex: http_response - request duration size - latency ....
+    
+ unit - bucket <== count 
+
+Summary
+---------
+Collective data  - similar to Historgram
+unit - qunatiles (or) percentiles of the data
+
+Summary - Calculate and expose - quantiles directly 
+Histogram - Doest not directly expose qunatiles - calculate no.of bucket data
+
+
+http_requests_duration_seconds_...{quantiles="0.6"} 1.4
+				  ----------------
+
+Aggregation
+- sum avg min max
+
+<metric> {K1=V1,..Kn=Vn} <Value>
+			 --------
+			   |-> Instant vector
+
+scalar (or) instant vector - single value -> Y axis ->we can see the graph
+|
+Collection - range vector 
+	    --------------
+	
+
+<metric> {K1=V1,..Kn=Vn}[duration] -><rangeVector>
+				  ------------------
+					|->we can't see the graph
+
+do aggregate operation - we will use duration -><rangeVector>
+.............................................................
+
+<mtricType> - Counter -> rate() ->o/p ->is gauge ->we can use aggregate
+
+ex:-
+-----
+node_network_receive_bytes_total{job="OL8"} ->counter type metric
+
+node_network_receive_bytes_total{job="OL8"}[5m] ->range vector
+|
+use rate() function
+|
+rate(node_network_receive_bytes_total{job="OL8"}[5m]) ->o/p is range 
+|
+we can use aggregate - sum,max,min..
+|
+sum (rate(node_network_receive_bytes_total{job="OL8"}[5m]))
+|
+sum without(instance)(rate(node_network_receive_bytes_total{job="OL8"}[5m]))
+.....................		
+
+To get average reponse size
+----------------------------
+prometheus_http_response_size_bytes_sum
+prometheus_http_response_size_bytes_sum[5m]
+
+rate(prometheus_http_response_size_bytes_sum[5m])
+|
+sum without(instance)(rate(prometheus_http_response_size_bytes_sum[5m]))
+|
+sum without(instance)(rate(prometheus_http_response_size_bytes_count[5m]))
+
+
+
+sum without(instance)(rate(prometheus_http_response_size_bytes_sum[5m]))
+/ 
+sum without(instance)(rate(prometheus_http_response_size_bytes_count[5m]))
+
+		
+############
+
+topk()
+bottomk()
+
+############
+
+promQL
+|
+|->operators
+	|->binary operators
+		|->arithmetic 
+		|->relational
+		|->logical and or unless
+	|->modifier - like typecast 
+		bool - on off 1 0 
+	|->aggreagate - sum max min
+
+ |->functions
+	|->math
+	|->Time and date
+	|->counter type
+	|->gauge
+	|->Aggregation overtime
+
+
+	max_over_time(process_resident_memory_bytes[5m])
+	-------------------------------------------------
+		|
+	max without(instance)(max_over_time(process_resident_memory_bytes[5m]))
+		|
+		same as
+		|	
+		max without(instance)(rate(process_resident_memory_bytes[5m]))
+		
+		
+Time and date
+
+time()
+
+-----------------------------
+Vector Matching 
+-----------------
+One - to - One
+
+process_open_fds 
+   + - * / % = < > <= >=
+process_max_fds	
+
+ex:
+---
+process_open_fds > process_max_fds	
+process_open_fds + process_max_fds
+process_open_fds / process_max_fds
+
+Many-to-One and group_left
+--------------------------------
+sum without(cpu)(rate(node_cpu_seconds_total[5m])) /ignoring(mode) group_left sum without(cpu,mode)(rate(node_cpu_seconds_total[5m]))
+
+logical operators and or unless
+many to many 
+------------------------------------------------------------------------------------
+promQL
+-------//single line
+
+complexQL
+multiple query
+ - aggregation
+----------------//
+precompute
+---------------//
+----------------------//use record rules
+
+recording rules
+----------------
+ ->yaml file 
+   ----------
+   
+file: p1.yml
+
+groups:
+- name: <groupName>
+  rules:
+  - record: <rulename1>
+    expr: <promQL>
+  - record: <rulename2>
+    expr: <promQL>
+  ..
+
+groups
+name
+rules
+record
+expr
+---------//predefined keys
+
+groups - collection of rules
+			|
+			collection of record
+					|
+					expr: promQL
+-------------------------------------------------------------------------------------
+promtool - to validate yml content syntax
+
+C:\Users\theeba\Documents\Grafana-Prometheus-Files\prometheus-3.2.0-rc.1.windows-amd64\prometheus-3.2.0-rc.1.windows-amd64>promtool.exe check rules p1.yml
+Checking p1.yml
+  FAILED:
+p1.yml: yaml: line 9: mapping values are not allowed in this context
+p1.yml: yaml: line 9: mapping values are not allowed in this context
+
+C:\Users\theeba\Documents\Grafana-Prometheus-Files\prometheus-3.2.0-rc.1.windows-amd64\prometheus-3.2.0-rc.1.windows-amd64>
+C:\Users\theeba\Documents\Grafana-Prometheus-Files\prometheus-3.2.0-rc.1.windows-amd64\prometheus-3.2.0-rc.1.windows-amd64>
+C:\Users\theeba\Documents\Grafana-Prometheus-Files\prometheus-3.2.0-rc.1.windows-amd64\prometheus-3.2.0-rc.1.windows-amd64>promtool.exe check rules p1.yml
+Checking p1.yml
+  SUCCESS: 3 rules found
+
+
+C:\Users\theeba\Documents\Grafana-Prometheus-Files\prometheus-3.2.0-rc.1.windows-amd64\prometheus-3.2.0-rc.1.windows-amd64>
+--------------------------------------------------------------------------------
+pushgateway
+-----------
+|->port number: 9091
+
+<code>
+ |
+post the code URL - API - post operation
+	 	|
+		<IP>:9091
+		----------
+
+[shell script (or) job ]
+ ----------------------//execute - result post pushgateway(IP:9091)
+					    [          ] //cache unit
+						|
+						|
+					prometheus pull the metric from pushgateway
+
+https://github.com/prometheus/pushgateway/releases/download/v1.11.0/pushgateway-1.11.0.linux-amd64.tar.gz
+
+-------------------------------------------------------------------------------
+pushgateway - demo
+--------------------
+OL8 - cloud instance 
+|
+Step 1: Write a simple shellscript and execute script //post/push metrics to pushgateway
+vi p1.sh
+
+result=78
+echo $result
+cat <<EOF|curl --data-binary @- "http://localhost:9091/metrics/job/RHL/OL/jobname"
+result $result
+EOF
+
+:wq <== save and exit
+
+chmod a+x p1.sh
+./p1.sh
+
+Step 2: Download pushgateway exporter from prometheus.io/downloads 
+
+Linux:
+wget https://github.com/prometheus/pushgateway/releases/download/v1.11.0/pushgateway-1.11.0.linux-amd64.tar.gz
+
+arm:
+----
+wget https://github.com/prometheus/pushgateway/releases/download/v1.11.0/pushgateway-1.11.0.linux-arm64.tar.gz
+
+Step 3: unzip pushgateway.tar.gz
+
+tar -xvzf pushgateway...
+
+Step 4: Go to pushgateway directory
+cd push_gateway 
+
+Step 5: execute pushgateway binary 
+	./pushgateway >/dev/null &
+
+Step 6: execute your shell script
+	./p1.sh
+
+Step 7: Test pushgateway metrics are exposed 
+	curl 127.0.0.1:9091/metrics
+	 # OK
+
+|	
+	Go to prometheus server 
+Step 8: update pushgateway details to prometheus (prometheus.yml)
+	|
+	- targets: ['OL8-IP:9091']
+	    
+|
+Step 9: restart prometheus -> see the prometheus targets
+-----------------------------------------------------------------------
+
+Application monitoring
+-------------------------
+
+ To monitor remotenode - node_exporter ->process(like agent)
+			  |
+			curl 127.0.0.1:9100/metrics
+			....//OK
+		         ------------------------------------------>prometheus
+								    IP:9100
+			   
+		Vs
+
+[p1.java] [p1.py] [p1.cpp]
+ ....      ....     ...	    ----------------->prometheus
+					       IP:<port> 
+instrument the code//
+		|--->expose the metrics
+code should use prometheus lib  ........ ------->....
+
+
+	+------------------+
+	| Application Code |
+	|  -- start http server :<port>
+	|  -- ....		  8000
+	|  
+	+------------------+
+		|
+		IP:<port> 
+		      |________________________prometheus 
+						localhost:8000
+
+1st download prometheus libs
+2nd write a code 
+3rd start http_server(8000)
+|
+4th execute the code
+
+Test: curl localhost:8000/metrics
+	   -----------------
+
+code logic
+-----------
+counter
+gague
+summary
+histogram
+---------------//class (or) function
+		 |		|
+		object
+----------------------------------------------------------------------------
+python
+|
+1st download prometheus libs -  pip install prometheus_client
+
+2nd write a code 
+file: p1.py
+--------------
+import http.server
+from prometheus_client import start_http_server
+
+class myclass(http.server.BaseHTTPRequestHandler):
+	def f1(self):
+		self.send_response(200)
+		self.end_headers()
+		self.wfile(b"Hello")
+
+if __name__ == '__main__':
+	start_http_server(8000)
+	server = http.server.HTTPServer(('localhost',8001),myclass)
+	server.serve_forever()
+
+
+	
+curl localhost:8000/metrics
+	
+----------------------------------------------------------------------
+
+Webframe work
+--------------
+ - collection of libs
+ |
+ - flask - python framework
+     - webserver :
+     - jinja2
+     - python code
+     - html
+     - database :
+	...
+  -------------------//IP:5000
+
+
+ +-------------------------+
+ |			   |
+ |			   |
+ |			   |
+ +-------------------------+
+ 	|	5000
+	|
+   start_http_server(8000)
+	|
+	|________________________prometheus:9090
+					...
+ curl 127.0.0.1:5000
+ curl 127.0.0.1:5000/add
+ curl 127.0.0.1:5000/search
+		....
+		....	 
+	
+========================================================================================
